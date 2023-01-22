@@ -1,0 +1,176 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+//import 'package:sivalingam_milks/routes/home.dart';
+import 'package:sivalingam_milks/routes/login_autofill.dart';
+import 'package:sivalingam_milks/routes/signup.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'jsontodart.dart';
+
+/// This sample app shows an app with two screens.
+///
+/// The first route '/' is mapped to [HomeScreen], and the second route
+/// '/details' is mapped to [DetailsScreen].
+///
+/// The buttons use context.go() to navigate to each destination. On mobile
+/// devices, each destination is deep-linkable and on the web, can be navigated
+/// to using the address bar.
+void main() {
+  runApp(FutureBuilder(
+    future: verifyToken(),
+    builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+      if (snapshot.data ?? false) {
+        // Token is valid, start the app
+        return const HomeScreen();
+      } else {
+        // Token is invalid or still being verified
+        return const MyApp();
+      }
+    },
+  ));
+}
+
+Future<String?> getToken() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getString('token');
+}
+
+Future<bool> verifyToken() async {
+  String? token = await getToken();
+
+  final response = await http
+      .get(Uri.parse('https://sivalingammilks.com/api/verify'), headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Authorization': 'Bearer $token',
+  });
+  if (response.statusCode == 200) {
+    Loginuser.fromJson(jsonDecode(response.body));
+    Loginuser data = Loginuser.fromJson(json.decode(response.body));
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', data.token);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/// The route configuration.
+final GoRouter _router = GoRouter(
+  routes: <RouteBase>[
+    GoRoute(
+      path: '/',
+      builder: (BuildContext context, GoRouterState state) {
+        return const MainScreen();
+      },
+      routes: <RouteBase>[
+        GoRoute(
+          path: 'Home',
+          builder: (BuildContext context, GoRouterState state) {
+            return const HomeScreen();
+          },
+        ),
+        GoRoute(
+          path: 'signup',
+          builder: (BuildContext context, GoRouterState state) {
+            return const SignupPage();
+          },
+        ),
+// GoRoute(
+// path: 'home',
+// builder: (BuildContext context, GoRouterState state) {
+// return const Home();
+// },
+//),
+      ],
+    ),
+  ],
+);
+
+/// The main app.
+class MyApp extends StatelessWidget {
+  /// Constructs a [MyApp]
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      routerConfig: _router,
+    );
+  }
+}
+
+class MainScreen extends StatelessWidget {
+  const MainScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sivalingam Milks',
+      home: Scaffold(
+          appBar: AppBar(
+            centerTitle: true,
+            title: const Text('Sivalingam Milks'),
+            leading: Builder(
+                builder: ((context) => IconButton(
+                      icon: const Icon(Icons.menu),
+                      color: Colors.white,
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                    ))),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications),
+                color: Colors.white,
+                onPressed: () {},
+              ),
+            ],
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+          ),
+          drawer: const Drawer(
+            backgroundColor: Colors.blue,
+          ),
+          body: const LoginForm(),
+          bottomNavigationBar: BottomAppBar(
+            color: Colors.blue,
+            child: Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                IconButton(
+                  icon: const Icon(Icons.home),
+                  color: Colors.white,
+                  onPressed: () {
+                    context.go('/Home');
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.date_range),
+                  color: Colors.white,
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.payment),
+                  color: Colors.white,
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.support_agent),
+                  color: Colors.white,
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.account_circle),
+                  color: Colors.white,
+                  onPressed: () {},
+                ),
+              ],
+            ),
+          )),
+    );
+  }
+}
