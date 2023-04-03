@@ -109,6 +109,9 @@ word mode;
 const char *ssid = "sivalingammilks";
 const char *password = "sivalingammilks";
 AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
+bool ledState = 0;
+const int ledPin = 27;
 String endpoint = "https://sivalingammilks.com/api/";
 String token = "";
 boolean qtyFlag = false;
@@ -145,6 +148,11 @@ void IRAM_ATTR pulseCounter()
 const char* PARAM_INPUT_1 = "output";
 const char* PARAM_INPUT_2 = "state";
 
+const char* QUANTITY_INPUT = "qty";
+const char* PRICE_INPUT = "price";
+const char* CUSTOMERID_INPUT = "customerId";
+
+
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
@@ -167,6 +175,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 </head>
 <body>
   <h2>Sivalingam Milks</h2>
+  <button onclick="closeTab()">Close Tab</button>
   %BUTTONPLACEHOLDER%
 <script>function toggleCheckbox(element) {
   var xhr = new XMLHttpRequest();
@@ -174,6 +183,11 @@ const char index_html[] PROGMEM = R"rawliteral(
   else { xhr.open("GET", "/change?output="+element.id+"&state=1", true); }
   xhr.send();
 }
+
+function closeTab() {
+  window.close();
+}
+
 </script>
 </body>
 </html>
@@ -198,48 +212,6 @@ String outputState(int output){
     return "";
   }
 }
-
-const char salepage[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML><html>
-<head>
-    <title>Html-Qrcode Demo</title>
-<body>
-    <div id="qr-reader" style="width:500px"></div>
-    <div id="qr-reader-results"></div>
-</body>
-<script src="/html5-qrcode.min.js"></script>
-<script>
-    function docReady(fn) {
-        // see if DOM is already available
-        if (document.readyState === "complete"
-            || document.readyState === "interactive") {
-            // call on next available tick
-            setTimeout(fn, 1);
-        } else {
-            document.addEventListener("DOMContentLoaded", fn);
-        }
-    }
-
-    docReady(function () {
-        var resultContainer = document.getElementById('qr-reader-results');
-        var lastResult, countResults = 0;
-        function onScanSuccess(decodedText, decodedResult) {
-            if (decodedText !== lastResult) {
-                ++countResults;
-                lastResult = decodedText;
-                // Handle on success condition with the decoded message.
-                console.log(`Scan result ${decodedText}`, decodedResult);
-            }
-        }
-
-        var html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader", { fps: 10, qrbox: 250 });
-        html5QrcodeScanner.render(onScanSuccess);
-    });
-</script>
-</head>
-</html>
-)rawliteral";
 
 void setup()
 {
@@ -287,9 +259,7 @@ void setup()
  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/html", index_html, processor);
   });
-   server.on("/addsale", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", salepage, processor);
-  });
+
    server.on("/change", HTTP_GET, [] (AsyncWebServerRequest *request) {
     String inputMessage1;
     String inputMessage2;
@@ -309,6 +279,37 @@ void setup()
     Serial.println(inputMessage2);
     request->send(200, "text/plain", "OK");
   });
+  
+   server.on("/sale", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    int qty;
+    int price;
+    String customerId;
+    // GET input1 value on <ESP_IP>/sale?qty=<qty>&price=<price>&customerId=<customerId>
+    if (request->hasParam(QUANTITY_INPUT) && request->hasParam(PRICE_INPUT) && request->hasParam(CUSTOMERID_INPUT)) {
+      qty = request->getParam(QUANTITY_INPUT)->value().toInt();
+      price = request->getParam(PRICE_INPUT)->value().toInt();
+      customerId = request->getParam(CUSTOMERID_INPUT)->value();
+       if (price > 0 && price < 400)
+      {
+        Serial.println(customerId);
+        Serial.println(milkPrice);
+        if (validateCustomer(customerId, price))
+        {
+          addSale(qty, price, customerId);
+        }
+      }
+    }
+    else if (request->hasParam(QUANTITY_INPUT) && request->hasParam(PRICE_INPUT)) {
+      qty = request->getParam(QUANTITY_INPUT)->value().toInt();
+      price = request->getParam(PRICE_INPUT)->value().toInt();
+       customerId = "";
+      addSale(qty,price,customerId);
+    }
+    else {
+     request->send(400, "text/plain", "Bad data");
+    }
+    request->send(200, "text/plain", "OK");
+  });
 
   AsyncElegantOTA.begin(&server);
   WebSerial.begin(&server);
@@ -319,6 +320,7 @@ void setup()
 
 void loop()
 {
+
   // digitalWrite(M_RELAY, HIGH);
   // delay(100);
   lastRead = 0;
@@ -416,8 +418,8 @@ void login()
   //     mobile = requestBody["mobile"];
   //     delay(1000);
   //   } while (mobile.length() < 10);
-  requestBody["mobile"] = "9843485201";
-  requestBody["password"] = "nikhisha";
+  requestBody["mobile"] = "7418489311";
+  requestBody["password"] = "hari1234";
   alarmBuzzer(1, 200);
   String response = httpRequest("POST", "login", requestBody);
   JSONVar result = JSON.parse(response);
@@ -505,38 +507,38 @@ void addSale(int quantity, int price, String customerId)
   }
    else if (quantity <= 900)
   {
-     interval = 100;
-     max_loop = 15;
+    //  interval = 100;
+    //  max_loop = 15;
     calibrationFactor = ninehundred;
   }
   else if (quantity <= 1000)
   {
-     interval = 100;
-     max_loop = 15;
+    //  interval = 100;
+    //  max_loop = 15;
     calibrationFactor = thousand;
   }
    else if (quantity <= 1250)
   {
-     interval = 500;
-     max_loop = 3;
+    //  interval = 500;
+    //  max_loop = 3;
     calibrationFactor = thousandtwofifty;
   }
     else if (quantity <= 1500)
   {
-     interval = 500;
-     max_loop = 3;
+    //  interval = 500;
+    //  max_loop = 3;
     calibrationFactor = thousandfivehundred;
   }
    else if (quantity <= 1750)
   {
-     interval = 500;
-     max_loop = 3;
+    //  interval = 500;
+    //  max_loop = 3;
     calibrationFactor = thousandsevenfifty;
   }
   else
   {
-     interval = 500;
-     max_loop = 3;
+    //  interval = 500;
+    //  max_loop = 3;
     calibrationFactor = twothousandPlus;
   }
   WebSerial.println(String(calibrationFactor));
