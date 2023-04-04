@@ -14,6 +14,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncElegantOTA.h>
 
+
 #define MACHINE_ID "10001"
 
 #define STB 25
@@ -109,13 +110,10 @@ word mode;
 const char *ssid = "sivalingammilks";
 const char *password = "sivalingammilks";
 AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-bool ledState = 0;
-const int ledPin = 27;
 String endpoint = "https://sivalingammilks.com/api/";
 String token = "";
 boolean qtyFlag = false;
-String customerId = "";
+String customerId;
 String saleMsg = "";
 String role = "";
 const char *ca_cert =
@@ -175,7 +173,6 @@ const char index_html[] PROGMEM = R"rawliteral(
 </head>
 <body>
   <h2>Sivalingam Milks</h2>
-  <button onclick="closeTab()">Close Tab</button>
   %BUTTONPLACEHOLDER%
 <script>function toggleCheckbox(element) {
   var xhr = new XMLHttpRequest();
@@ -183,11 +180,6 @@ const char index_html[] PROGMEM = R"rawliteral(
   else { xhr.open("GET", "/change?output="+element.id+"&state=1", true); }
   xhr.send();
 }
-
-function closeTab() {
-  window.close();
-}
-
 </script>
 </body>
 </html>
@@ -291,8 +283,6 @@ void setup()
       customerId = request->getParam(CUSTOMERID_INPUT)->value();
        if (price > 0 && price < 400)
       {
-        Serial.println(customerId);
-        Serial.println(milkPrice);
         if (validateCustomer(customerId, price))
         {
           addSale(qty, price, customerId);
@@ -329,9 +319,9 @@ void loop()
     if (token.length() > 0)
     {
       module.setDisplayToString(saleMsg + '-');
-      customerId = "";
-      int price = 0;
-      int qty = 0;
+qty = 0;
+price = 0;
+customerId = "";
       int userInput = readInputFromKeyPad(1, 4);
       WebSerial.println("Smart Card Options: \n1.Write mobile \n2.Write Password \n3.Read Mobile \n4.Read Password");
       WebSerial.println("Enter option number and data seperated by comma");
