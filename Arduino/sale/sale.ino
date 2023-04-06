@@ -146,12 +146,6 @@ void IRAM_ATTR pulseCounter()
 const char* PARAM_INPUT_1 = "output";
 const char* PARAM_INPUT_2 = "state";
 
-const char* QUANTITY_INPUT = "qty";
-const char* PRICE_INPUT = "price";
-const char* CUSTOMERID_INPUT = "customerId";
-
-
-
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -271,42 +265,7 @@ void setup()
     Serial.println(inputMessage2);
     request->send(200, "text/plain", "OK");
   });
-  
-   server.on("/sale", HTTP_GET, [] (AsyncWebServerRequest *request) {
-    int qty;
-    int price;
-    String customerId;
-    // GET input1 value on <ESP_IP>/sale?qty=<qty>&price=<price>&customerId=<customerId>
-    if (request->hasParam(QUANTITY_INPUT) && request->hasParam(PRICE_INPUT) && request->hasParam(CUSTOMERID_INPUT)) {
-      qty = request->getParam(QUANTITY_INPUT)->value().toInt();
-      price = request->getParam(PRICE_INPUT)->value().toInt();
-      customerId = request->getParam(CUSTOMERID_INPUT)->value();
-       if (price > 0 && price < 400)
-      {
-        if (validateCustomer(customerId, price))
-        {
-          addSale(qty, price, customerId);
-        }
-      }
-    }
-    else if (request->hasParam(QUANTITY_INPUT) && request->hasParam(PRICE_INPUT)) {
-      qty = request->getParam(QUANTITY_INPUT)->value().toInt();
-      price = request->getParam(PRICE_INPUT)->value().toInt();
-       customerId = "";
-      addSale(qty,price,customerId);
-    }
-    else {
-     request->send(400, "text/plain", "Bad data");
-    }
-    request->send(200, "text/plain", "OK");
-  });
 
-  AsyncElegantOTA.begin(&server);
-  WebSerial.begin(&server);
-  WebSerial.msgCallback(recvMsg);
-  server.begin();
-  Serial.println("HTTP server started");
-}
 
 void loop()
 {
