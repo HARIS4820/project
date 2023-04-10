@@ -1,3 +1,5 @@
+// check login credtional and machine id before upload the code
+
 #include <TM1638.h>
 #include <TM1638QYF.h>
 #include <WiFi.h>
@@ -14,7 +16,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncElegantOTA.h>
 
-#define MACHINE_ID "10001"
+#define MACHINE_ID "102"
 
 #define STB 25
 #define DIO 32
@@ -82,14 +84,14 @@ double twohundred;
 double threehundred;
 double fourhundred;
 double fivehundred;
-// double sixhundred;
-// double sevenhundred;
-// double eighthundred;
-// double ninehundred;
+double sixhundred;
+double sevenhundred;
+double eighthundred;
+double ninehundred;
 double thousand;
-// double thousandtwofifty;
-// double thousandfivehundred;
-// double thousandsevenfifty;
+double thousandtwofifty;
+double thousandfivehundred;
+double thousandsevenfifty;
 double twothousandPlus;
 volatile byte pulseCount;
 byte pulse1Sec = 0;
@@ -139,63 +141,63 @@ const char *ca_cert =
 void IRAM_ATTR pulseCounter() {
   pulseCount++;
 }
-// const char* PARAM_INPUT_1 = "output";
-// const char* PARAM_INPUT_2 = "state";
+const char* PARAM_INPUT_1 = "output";
+const char* PARAM_INPUT_2 = "state";
 const char *QUANTITY_INPUT = "qty";
 const char *PRICE_INPUT = "price";
 const char *CUSTOMERID_INPUT = "customerId";
-// const char index_html[] PROGMEM = R"rawliteral(
-// <!DOCTYPE HTML><html>
-// <head>
-//   <title>Sivalingam Milks</title>
-//   <meta name="viewport" content="width=device-width, initial-scale=1">
-//   <link rel="icon" href="data:,">
-//   <style>
-//     html {font-family: Arial; display: inline-block; text-align: center;}
-//     h2 {font-size: 3.0rem;}
-//     p {font-size: 3.0rem;}
-//     body {max-width: 600px; margin:0px auto; padding-bottom: 25px;}
-//     .switch {position: relative; display: inline-block; width: 120px; height: 68px}
-//     .switch input {display: none}
-//     .slider {position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 6px}
-//     .slider:before {position: absolute; content: ""; height: 52px; width: 52px; left: 8px; bottom: 8px; background-color: #fff; -webkit-transition: .4s; transition: .4s; border-radius: 3px}
-//     input:checked+.slider {background-color: #2E2FF5}
-//     input:checked+.slider:before {-webkit-transform: translateX(52px); -ms-transform: translateX(52px); transform: translateX(52px)}
-//   </style>
-// </head>
-// <body>
-//   <h2>Sivalingam Milks</h2>
-//   %BUTTONPLACEHOLDER%
-// <script>function toggleCheckbox(element) {
-//   var xhr = new XMLHttpRequest();
-//   if(element.checked){ xhr.open("GET", "/change?output="+element.id+"&state=0", true); }
-//   else { xhr.open("GET", "/change?output="+element.id+"&state=1", true); }
-//   xhr.send();
-// }
-// </script>
-// </body>
-// </html>
-// )rawliteral";
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML><html>
+<head>
+  <title>Sivalingam Milks</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <style>
+    html {font-family: Arial; display: inline-block; text-align: center;}
+    h2 {font-size: 3.0rem;}
+    p {font-size: 3.0rem;}
+    body {max-width: 600px; margin:0px auto; padding-bottom: 25px;}
+    .switch {position: relative; display: inline-block; width: 120px; height: 68px}
+    .switch input {display: none}
+    .slider {position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 6px}
+    .slider:before {position: absolute; content: ""; height: 52px; width: 52px; left: 8px; bottom: 8px; background-color: #fff; -webkit-transition: .4s; transition: .4s; border-radius: 3px}
+    input:checked+.slider {background-color: #2E2FF5}
+    input:checked+.slider:before {-webkit-transform: translateX(52px); -ms-transform: translateX(52px); transform: translateX(52px)}
+  </style>
+</head>
+<body>
+  <h2>Sivalingam Milks</h2>
+  %BUTTONPLACEHOLDER%
+<script>function toggleCheckbox(element) {
+  var xhr = new XMLHttpRequest();
+  if(element.checked){ xhr.open("GET", "/change?output="+element.id+"&state=0", true); }
+  else { xhr.open("GET", "/change?output="+element.id+"&state=1", true); }
+  xhr.send();
+}
+</script>
+</body>
+</html>
+)rawliteral";
 
-// // Replaces placeholder with button section in your web page
-// String processor(const String& var){
-//   //// WebSerial.println(var);
-//   if(var == "BUTTONPLACEHOLDER"){
-//     String buttons = "";
-//     buttons += "<h4>Motor On/Off</h4><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"13\" " + outputState(13) + "><span class=\"slider\"></span></label>";
-//     return buttons;
-//   }
-//   return String();
-// }
+// Replaces placeholder with button section in your web page
+String processor(const String& var){
+  //// WebSerial.println(var);
+  if(var == "BUTTONPLACEHOLDER"){
+    String buttons = "";
+    buttons += "<h4>Motor On/Off</h4><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"13\" " + outputState(13) + "><span class=\"slider\"></span></label>";
+    return buttons;
+  }
+  return String();
+}
 
-// String outputState(int output){
-//   if(digitalRead(output)){
-//     return "checked";
-//   }
-//   else {
-//     return "";
-//   }
-// }
+String outputState(int output){
+  if(digitalRead(output)){
+    return "checked";
+  }
+  else {
+    return "";
+  }
+}
 void setup() {
 
   Serial.begin(115200);
@@ -235,64 +237,42 @@ void setup() {
   }
   // WebSerial.println("mDNS responder started");
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/html", "welcome");
-  });
 
-  //  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-  //     request->send_P(200, "text/html", index_html, processor);
-  //   });
-  //  server.on("/change", HTTP_GET, [] (AsyncWebServerRequest *request) {
-  //   String inputMessage1;
-  //   String inputMessage2;
-  //   // GET input1 value on <ESP_IP>/change?output=<inputMessage1>&state=<inputMessage2>
-  //   if (request->hasParam(PARAM_INPUT_1) && request->hasParam(PARAM_INPUT_2)) {
-  //     inputMessage1 = request->getParam(PARAM_INPUT_1)->value();
-  //     inputMessage2 = request->getParam(PARAM_INPUT_2)->value();
-  //     digitalWrite(inputMessage1.toInt(), inputMessage2.toInt());
-  //   }
-  //   else {
-  //     inputMessage1 = "No message sent";
-  //     inputMessage2 = "No message sent";
-  //   }
-  //   Serial.print("GPIO: ");
-  //   Serial.print(inputMessage1);
-  //   Serial.print(" - Set to: ");
-  //   Serial.println(inputMessage2);
-  //   request->send(200, "text/plain", "OK");
-  // });
+   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send_P(200, "text/html", index_html, processor);
+    });
+   server.on("/change", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    String inputMessage1;
+    String inputMessage2;
+    // GET input1 value on <ESP_IP>/change?output=<inputMessage1>&state=<inputMessage2>
+    if (request->hasParam(PARAM_INPUT_1) && request->hasParam(PARAM_INPUT_2)) {
+      inputMessage1 = request->getParam(PARAM_INPUT_1)->value();
+      inputMessage2 = request->getParam(PARAM_INPUT_2)->value();
+      digitalWrite(inputMessage1.toInt(), inputMessage2.toInt());
+    }
+    else {
+      inputMessage1 = "No message sent";
+      inputMessage2 = "No message sent";
+    }
+    Serial.print("GPIO: ");
+    Serial.print(inputMessage1);
+    Serial.print(" - Set to: ");
+    Serial.println(inputMessage2);
+    request->send(200, "text/plain", "OK");
+  });
   server.on("/sale", HTTP_GET, [](AsyncWebServerRequest *request) {
     // GET input1 value on <ESP_IP>/sale?qty=<qty>&price=<price>&customerId=<customerId>
     if (request->hasParam(QUANTITY_INPUT) && request->hasParam(PRICE_INPUT) && request->hasParam(CUSTOMERID_INPUT)) {
       qty = request->getParam(QUANTITY_INPUT)->value().toInt();
       price = request->getParam(PRICE_INPUT)->value().toInt();
       customerId = request->getParam(CUSTOMERID_INPUT)->value();
-     // server.end();
        apiFlag = true;
-      // WebSerial.println("apiFlag true");
-      // if (price > 0 && price < 400) {
-      //   // WebSerial.println(customerId);
-      //   // WebSerial.println(milkPrice);
-      //   if (validateCustomer(customerId, price)) {
-      //     addSale(qty, price, customerId);
-      //   }
-      // }
 
     } else if (request->hasParam(QUANTITY_INPUT) && request->hasParam(PRICE_INPUT)) {
       qty = request->getParam(QUANTITY_INPUT)->value().toInt();
       price = request->getParam(PRICE_INPUT)->value().toInt();
       customerId = "";
-     // server.end();
        apiFlag = true;
-      // WebSerial.println("apiFlag true");
-      // if (price > 0 && price < 400) {
-      //   // WebSerial.println(customerId);
-      //   // WebSerial.println(milkPrice);
-      //   if (validateCustomer(customerId, price)) {
-      //     addSale(qty, price, customerId);
-      //   }
-      // }
-
     } else {
       request->send(400, "text/plain", "Bad data");
     }
@@ -309,7 +289,6 @@ void setup() {
 
 void loop() {
   WebSerial.println("loop started");
- // server.begin();
   // digitalWrite(M_RELAY, HIGH);
   // delay(100);
   lastRead = 0;
@@ -317,11 +296,10 @@ void loop() {
     if (token.length() > 0) {
       module.setDisplayToString(saleMsg + '-');
       customerId = "";
-      // int price = 0;
-      // int qty = 0;
       int userInput = readInputFromKeyPad(1, 4);
-      // WebSerial.println("Smart Card Options: \n1.Write mobile \n2.Write Password \n3.Read Mobile \n4.Read Password");
-      // WebSerial.println("Enter option number and data seperated by comma");
+      
+       WebSerial.println("Smart Card Options: \n1.Write mobile \n2.Write Password \n3.Read Mobile \n4.Read Password");
+       WebSerial.println("Enter option number and data seperated by comma");
 
       if (qtyFlag) {
         price = ceil((userInput * milkPrice) / 1000);
@@ -330,28 +308,19 @@ void loop() {
       }
        else if (apiFlag)
         {
-          // WebSerial.println("apiFlag to loop");
-               if (price > 0 && price < 400) {
-        // Serial.println(customerId);
-        // Serial.println(milkPrice);
-        if (validateCustomer(customerId, price)) {
-          addSale(qty, price, customerId);
-        }
-      }
           apiFlag = false;
-          // WebSerial.println("apiFlag false");
+        // validateCustomer(customerId, price);
         }
 
-      else {
+      else  {
         price = userInput;
         qty = ceil((userInput * 1000) / milkPrice);
-      }
-
-      // Serial.println(price);
-      // Serial.println(qty);
+      } 
+      Serial.println(price);
+      Serial.println(qty);
       if (price > 0 && price < 400) {
-        // Serial.println(customerId);
-        // Serial.println(milkPrice);
+         Serial.println(customerId);
+         Serial.println(milkPrice);
         if (validateCustomer(customerId, price)) {
           addSale(qty, price, customerId);
         }
@@ -365,10 +334,10 @@ void loop() {
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
       delay(1000);  // new
-      // WebSerial.println("Connecting to Wifi"); // new
+      Serial.println("Connecting to Wifi"); // new
       module.setDisplayToString("Connect");  // new
     }                                        // new
-    // WebSerial.println("Connected");            // new
+    Serial.println("Connected");            // new
     Serial.print("IP address: ");  // new
   }                                // new
 }
@@ -377,7 +346,7 @@ boolean validateCustomer(String customerId, int price) {
   if (customerId.length() == 10) {
     String payload = "{}";
     String message = "";
-    // WebSerial.println("Insdie validate");
+    Serial.println("Insdie validate");
     JSONVar requestBody = JSON.parse(payload);
     requestBody["mobile"] = customerId;
     requestBody["price"] = price;
@@ -421,14 +390,14 @@ void login() {
   threehundred = result["300"];
   fourhundred = result["400"];
   fivehundred = result["500"];
-  // sixhundred = result["600"];
-  // sevenhundred = result["700"];
-  // eighthundred = result["800"];
-  // ninehundred = result["900"];
+  sixhundred = result["600"];
+  sevenhundred = result["700"];
+  eighthundred = result["800"];
+  ninehundred = result["900"];
   thousand = result["1000"];
-  // thousandtwofifty = result["1250"];
-  // thousandfivehundred = result["1500"];
-  // thousandsevenfifty = result["1750"];
+  thousandtwofifty = result["1250"];
+  thousandfivehundred = result["1500"];
+  thousandsevenfifty = result["1750"];
   twothousandPlus = result["2000plus"];
   milkPrice = result["milkPrice"];
 }
@@ -462,25 +431,25 @@ void addSale(int quantity, int price, String customerId) {
     max_loop = 30;
     calibrationFactor = fourhundred;
   } else if (quantity <= 500) {
-    interval = 50;
-    max_loop = 30;
+    interval = 100;
+    max_loop = 15;
     calibrationFactor = fivehundred;
   } else if (quantity <= 600) {
-    interval = 50;
-    max_loop = 30;
-    calibrationFactor = thousand;
+    interval = 100;
+    max_loop = 15;
+    calibrationFactor = sixhundred;
   } else if (quantity <= 700) {
-    interval = 50;
-    max_loop = 30;
-    calibrationFactor = thousand;
+    interval = 100;
+    max_loop = 15;
+    calibrationFactor = sevenhundred;
   } else if (quantity <= 800) {
     interval = 100;
     max_loop = 15;
-    calibrationFactor = thousand;
+    calibrationFactor = eighthundred;
   } else if (quantity <= 900) {
     interval = 100;
     max_loop = 15;
-    calibrationFactor = thousand;
+    calibrationFactor = ninehundred;
   } else if (quantity <= 1000) {
     interval = 100;
     max_loop = 15;
@@ -488,18 +457,18 @@ void addSale(int quantity, int price, String customerId) {
   } else if (quantity <= 1250) {
     interval = 500;
     max_loop = 3;
-    calibrationFactor = twothousandPlus;
+    calibrationFactor = thousandtwofifty;
   } else if (quantity <= 1500) {
     interval = 500;
     max_loop = 3;
-    calibrationFactor = twothousandPlus;
+    calibrationFactor = thousandfivehundred;
   } else if (quantity <= 1750) {
-    interval = 500;
-    max_loop = 3;
-    calibrationFactor = twothousandPlus;
+    interval = 1000;
+    max_loop = 1;
+    calibrationFactor = thousandsevenfifty;
   } else {
-    interval = 500;
-    max_loop = 3;
+    interval = 1000;
+    max_loop = 1;
     calibrationFactor = twothousandPlus;
   }
   // WebSerial.println(String(calibrationFactor));
@@ -687,6 +656,8 @@ String ReadBlockData(byte block) {
 int readInputFromKeyPad(int mn, int mx) {
   String text = "";
   String temp = "";
+   unsigned long lastInputTime = millis(); // Initialize the timer
+  const unsigned long noInputThreshold = 50; // Set the no-input threshold to 5 seconds
   while (text.length() <= mx) {
     temp = handleInput(&module, &mode, temp, mx);
     if (temp == "ok") {
@@ -724,8 +695,18 @@ int readInputFromKeyPad(int mn, int mx) {
     } else {
       text = temp;
     }
+     if (temp.length() == 0 && millis() - lastInputTime >= noInputThreshold) {
+      // If no input has been received for the threshold duration, break out of the loop
+      break;
+    }
+    
+    // Update the timer
+    if (temp.length() > 0) {
+      lastInputTime = millis();
+    }
   }
   return text.toInt();
+  
 }
 
 String handleInput(TM1638QYF *module, word *mode, String tempText, int l) {
