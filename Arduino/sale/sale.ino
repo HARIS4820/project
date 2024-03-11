@@ -1,5 +1,3 @@
-// check login credtional and machine id before upload the code
-
 #include <TM1638.h>
 #include <TM1638QYF.h>
 #include <WiFi.h>
@@ -22,8 +20,8 @@
 #define DIO 32
 #define CLK 33
 
-#define RST_PIN 22  // Configurable, see typical pin layout above
-#define SS_PIN 21   // SCK 18, MISO 19 , SDA 21, MOSI 23
+#define RST_PIN 22 // Configurable, see typical pin layout above
+#define SS_PIN 21  // SCK 18, MISO 19 , SDA 21, MOSI 23
 
 #define SENSOR 26
 #define M_RELAY 13
@@ -31,53 +29,59 @@
 #define BUZZER 27
 
 TM1638QYF module(DIO, CLK, STB);
-MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
+MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 
-void recvMsg(uint8_t *data, size_t len) {
-  mfrc522.PCD_Init();  // Init MFRC522 card
+void recvMsg(uint8_t *data, size_t len)
+{
+  mfrc522.PCD_Init(); // Init MFRC522 card
   String msg = "";
-  for (int i = 0; i < len; i++) {
+  for (int i = 0; i < len; i++)
+  {
     msg += char(data[i]);
   }
   WebSerial.println("Received Data...");
   WebSerial.println(msg);
   int option = msg.substring(0, 1).toInt();
   String value = msg.substring(2);
-  if (checkCardDetails()) {
-    switch (option) {
-      case 1:
-        WebSerial.println("Writing data in mobile blocks");
-        writeDataintoCard(value, 1, 2);
-        break;
-      case 2:
-        WebSerial.println("Writing data in password blocks");
-        writeDataintoCard(value, 4, 5);
-        break;
-      case 3:
-        WebSerial.println("Mobile :");
-        WebSerial.println(ReadBlockData(1));
+  if (checkCardDetails())
+  {
+    switch (option)
+    {
+    case 1:
+      WebSerial.println("Writing data in mobile blocks");
+      writeDataintoCard(value, 1, 2);
+      break;
+    case 2:
+      WebSerial.println("Writing data in password blocks");
+      writeDataintoCard(value, 4, 5);
+      break;
+    case 3:
+      WebSerial.println("Mobile :");
+      WebSerial.println(ReadBlockData(1));
 
-        break;
-      case 4:
-        WebSerial.println("Password:");
-        WebSerial.println(ReadBlockData(4));
-        break;
-      default:
-        break;
+      break;
+    case 4:
+      WebSerial.println("Password:");
+      WebSerial.println(ReadBlockData(4));
+      break;
+    default:
+      break;
     }
   }
   mfrc522.PICC_HaltA();
   mfrc522.PCD_StopCrypto1();
   WebSerial.println("Smart Card Options: \n1.Write mobile \n2.Write Password \n3.Read Mobile \n4.Read Password");
-  // WebSerial.println("Wifi Ip");
-  // // WebSerial.println(WiFi.localIP().toString());
+  WebSerial.println("Wifi Ip");
+  WebSerial.println(WiFi.localIP().toString());
 }
+JSONVar userDetails;
 long startTime = 0;
 long currentTime = 0;
 int milkPrice = 0;
 long currentMillis = 0;
 long previousMillis = 0;
-int interval = 50;
+int interval = 100;
+int mSpeed = 0;
 float calibrationFactor = 0;
 double hundred;
 double twohundred;
@@ -100,7 +104,7 @@ unsigned int flowMilliLitres;
 unsigned long totalMilliLitres;
 unsigned long lastRead;
 int loop_check = 0;
-int max_loop = 30;
+int max_loop = 15;
 bool flag = false;
 word mode;
 
@@ -110,42 +114,52 @@ AsyncWebServer server(80);
 String endpoint = "https://sivalingammilks.com/api/";
 String token = "";
 boolean qtyFlag = false;
-boolean apiFlag = false;
 String customerId = "";
-int price = 0;
-int qty = 0;
 String saleMsg = "";
 String role = "";
-const char *ca_cert =
-  "-----BEGIN CERTIFICATE-----\n"
-  "MIIDSjCCAjKgAwIBAgIQRK+wgNajJ7qJMDmGLvhAazANBgkqhkiG9w0BAQUFADA/\n"
-  "MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT\n"
-  "DkRTVCBSb290IENBIFgzMB4XDTAwMDkzMDIxMTIxOVoXDTIxMDkzMDE0MDExNVow\n"
-  "PzEkMCIGA1UEChMbRGlnaXRhbCBTaWduYXR1cmUgVHJ1c3QgQ28uMRcwFQYDVQQD\n"
-  "Ew5EU1QgUm9vdCBDQSBYMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB\n"
-  "AN+v6ZdQCINXtMxiZfaQguzH0yxrMMpb7NnDfcdAwRgUi+DoM3ZJKuM/IUmTrE4O\n"
-  "rz5Iy2Xu/NMhD2XSKtkyj4zl93ewEnu1lcCJo6m67XMuegwGMoOifooUMM0RoOEq\n"
-  "OLl5CjH9UL2AZd+3UWODyOKIYepLYYHsUmu5ouJLGiifSKOeDNoJjj4XLh7dIN9b\n"
-  "xiqKqy69cK3FCxolkHRyxXtqqzTWMIn/5WgTe1QLyNau7Fqckh49ZLOMxt+/yUFw\n"
-  "7BZy1SbsOFU5Q9D8/RhcQPGX69Wam40dutolucbY38EVAjqr2m7xPi71XAicPNaD\n"
-  "aeQQmxkqtilX4+U9m5/wAl0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNV\n"
-  "HQ8BAf8EBAMCAQYwHQYDVR0OBBYEFMSnsaR7LHH62+FLkHX/xBVghYkQMA0GCSqG\n"
-  "SIb3DQEBBQUAA4IBAQCjGiybFwBcqR7uKGY3Or+Dxz9LwwmglSBd49lZRNI+DT69\n"
-  "ikugdB/OEIKcdBodfpga3csTS7MgROSR6cz8faXbauX+5v3gTt23ADq1cEmv8uXr\n"
-  "AvHRAosZy5Q6XkjEGB5YGV8eAlrwDPGxrancWYaLbumR9YbK+rlmM6pZW87ipxZz\n"
-  "R8srzJmwN0jP41ZL9c8PDHIyh8bwRLtTcm1D9SZImlJnt1ir/md2cXjbDaJWFBM5\n"
-  "JDGFoqgCWjBH4d1QB7wCCZAA62RjYJsWvIjJEubSfZGL+T0yjWW06XyxV3bqxbYo\n"
-  "Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ\n"
-  "-----END CERTIFICATE-----\n";
+const char* rootCACertificate = R"string_literal(
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+    )string_literal";
 
-void IRAM_ATTR pulseCounter() {
+void IRAM_ATTR pulseCounter()
+{
   pulseCount++;
 }
+
 const char* PARAM_INPUT_1 = "output";
 const char* PARAM_INPUT_2 = "state";
-const char *QUANTITY_INPUT = "qty";
-const char *PRICE_INPUT = "price";
-const char *CUSTOMERID_INPUT = "customerId";
+
+
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -157,7 +171,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     h2 {font-size: 3.0rem;}
     p {font-size: 3.0rem;}
     body {max-width: 600px; margin:0px auto; padding-bottom: 25px;}
-    .switch {position: relative; display: inline-block; width: 120px; height: 68px}
+    .switch {position: relative; display: inline-block; width: 120px; height: 68px} 
     .switch input {display: none}
     .slider {position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 6px}
     .slider:before {position: absolute; content: ""; height: 52px; width: 52px; left: 8px; bottom: 8px; background-color: #fff; -webkit-transition: .4s; transition: .4s; border-radius: 3px}
@@ -181,7 +195,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 // Replaces placeholder with button section in your web page
 String processor(const String& var){
-  //// WebSerial.println(var);
+  //Serial.println(var);
   if(var == "BUTTONPLACEHOLDER"){
     String buttons = "";
     buttons += "<h4>Motor On/Off</h4><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"13\" " + outputState(13) + "><span class=\"slider\"></span></label>";
@@ -198,14 +212,17 @@ String outputState(int output){
     return "";
   }
 }
-void setup() {
+
+void setup()
+{
 
   Serial.begin(115200);
   module.setupDisplay(true, 7);
   pinMode(SENSOR, INPUT_PULLUP);
   pinMode(M_RELAY, OUTPUT);
   pinMode(BUZZER, OUTPUT);
-  digitalWrite(M_RELAY, HIGH);
+  analogWrite(M_RELAY, mSpeed); 
+  // digitalWrite(M_RELAY, HIGH);
   digitalWrite(BUZZER, LOW);
   flowRate = 0.0;
   flowMilliLitres = 0;
@@ -213,34 +230,36 @@ void setup() {
   previousMillis = 0;
   attachInterrupt(digitalPinToInterrupt(SENSOR), pulseCounter, FALLING);
 
-  mode = 0;  // initial button zero
+  mode = 0; // initial button zero
   module.setDisplayToString("Ready");
-  SPI.begin();  // Init SPI bus
+  SPI.begin(); // Init SPI bus
   delay(1000);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(1000);
-    // WebSerial.println("Connecting to Wifi");
+    Serial.println("Connecting to Wifi");
     module.setDisplayToString("Connect");
   }
-  // WebSerial.println("Connected");
+  Serial.println("Connected");
   Serial.print("IP address: ");
-  // WebSerial.println(WiFi.localIP());
-  if (!MDNS.begin("code")) {  // http://code.local
-    // WebSerial.println("Error setting up MDNS responder!");
-    while (1) {
+  Serial.println(WiFi.localIP());
+  if (!MDNS.begin("code"))
+  { // http://code.local
+    Serial.println("Error setting up MDNS responder!");
+    while (1)
+    {
       delay(1000);
     }
   }
-  // WebSerial.println("mDNS responder started");
+  Serial.println("mDNS responder started");
 
-
-   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send_P(200, "text/html", index_html, processor);
-    });
+ server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", index_html, processor);
+  });
    server.on("/change", HTTP_GET, [] (AsyncWebServerRequest *request) {
     String inputMessage1;
     String inputMessage2;
@@ -260,90 +279,79 @@ void setup() {
     Serial.println(inputMessage2);
     request->send(200, "text/plain", "OK");
   });
-  server.on("/sale", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // GET input1 value on <ESP_IP>/sale?qty=<qty>&price=<price>&customerId=<customerId>
-    if (request->hasParam(QUANTITY_INPUT) && request->hasParam(PRICE_INPUT) && request->hasParam(CUSTOMERID_INPUT)) {
-      qty = request->getParam(QUANTITY_INPUT)->value().toInt();
-      price = request->getParam(PRICE_INPUT)->value().toInt();
-      customerId = request->getParam(CUSTOMERID_INPUT)->value();
-       apiFlag = true;
-
-    } else if (request->hasParam(QUANTITY_INPUT) && request->hasParam(PRICE_INPUT)) {
-      qty = request->getParam(QUANTITY_INPUT)->value().toInt();
-      price = request->getParam(PRICE_INPUT)->value().toInt();
-      customerId = "";
-       apiFlag = true;
-    } else {
-      request->send(400, "text/plain", "Bad data");
-    }
-    request->send(200, "text/plain", "OK");
-  });
-
 
   AsyncElegantOTA.begin(&server);
   WebSerial.begin(&server);
   WebSerial.msgCallback(recvMsg);
   server.begin();
-  // WebSerial.println("HTTP server started");
+  Serial.println("HTTP server started");
 }
 
-void loop() {
-  WebSerial.println("loop started");
+void loop()
+{
   // digitalWrite(M_RELAY, HIGH);
   // delay(100);
   lastRead = 0;
-  if ((WiFi.status() == WL_CONNECTED)) {  // Check the current connection status
-    if (token.length() > 0) {
+  if ((WiFi.status() == WL_CONNECTED))
+  { // Check the current connection status
+    if (token.length() > 0)
+    {
       module.setDisplayToString(saleMsg + '-');
       customerId = "";
+      int price = 0;
+      int qty = 0;
       int userInput = readInputFromKeyPad(1, 4);
-      
-       WebSerial.println("Smart Card Options: \n1.Write mobile \n2.Write Password \n3.Read Mobile \n4.Read Password");
-       WebSerial.println("Enter option number and data seperated by comma");
+      WebSerial.println("Smart Card Options: \n1.Write mobile \n2.Write Password \n3.Read Mobile \n4.Read Password");
+      WebSerial.println("Enter option number and data seperated by comma");
 
-      if (qtyFlag) {
+      if (qtyFlag)
+      {
         price = ceil((userInput * milkPrice) / 1000);
         qty = userInput;
         qtyFlag = false;
       }
-       else if (apiFlag)
-        {
-          apiFlag = false;
-         validateCustomer(customerId, price);
-        }
-
-      else  {
+      else
+      {
         price = userInput;
         qty = ceil((userInput * 1000) / milkPrice);
-      } 
+      }
       Serial.println(price);
       Serial.println(qty);
-      if (price > 0 && price < 400) {
-         Serial.println(customerId);
-         Serial.println(milkPrice);
-        if (validateCustomer(customerId, price)) {
+      if (price > 0 && price < 400)
+      {
+        Serial.println(customerId);
+        Serial.println(milkPrice);
+        if (validateCustomer(customerId, price))
+        {
           addSale(qty, price, customerId);
         }
       }
-    } else {
+    }
+    else
+    {
       module.setDisplayToString("LOGIN");
       login();
     }
-  } else {
+  }
+  else
+  {
     module.setDisplayToString("Connect");
     WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(1000);  // new
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(1000);                          // new
       Serial.println("Connecting to Wifi"); // new
-      module.setDisplayToString("Connect");  // new
-    }                                        // new
+      module.setDisplayToString("Connect"); // new
+    }                                       // new
     Serial.println("Connected");            // new
-    Serial.print("IP address: ");  // new
-  }                                // new
+    Serial.print("IP address: ");           // new
+  }                                         // new
 }
 
-boolean validateCustomer(String customerId, int price) {
-  if (customerId.length() == 10) {
+boolean validateCustomer(String customerId, int price)
+{
+  if (customerId.length() == 10)
+  {
     String payload = "{}";
     String message = "";
     Serial.println("Insdie validate");
@@ -353,23 +361,27 @@ boolean validateCustomer(String customerId, int price) {
     String response = httpRequest("POST", "saleverify", requestBody);
     JSONVar result = JSON.parse(response);
     message = result["message"];
-    if (message == "Ok") {
+    if (message == "Ok")
+    {
       return true;
     }
     alarmBuzzer(3, 200);
     return false;
-  } else {
+  }
+  else
+  {
     return true;
   }
 }
-void login() {
+void login()
+{
   String payload = "{}";
-  // WebSerial.println("Insdie login");
+  Serial.println("Insdie login");
   JSONVar requestBody = JSON.parse(payload);
   String mobile = "";
   //   do
   //   {
-  //     // WebSerial.println("reading card");
+  //     Serial.println("reading card");
   //     requestBody = ReadRFIDData(1000);
   //     mobile = requestBody["mobile"];
   //     delay(1000);
@@ -379,13 +391,23 @@ void login() {
   alarmBuzzer(1, 200);
   String response = httpRequest("POST", "login", requestBody);
   JSONVar result = JSON.parse(response);
-  // Serial.println(result["token"]);
+  Serial.println(result["token"]);
   token = result["token"];
+  userDetails = result["userInfo"];
+  role = userDetails["role"];
+  
+  if (role == "branchmanager")
+  
+  {
+    digitalWrite(M_RELAY, LOW);
+    delay(1000); 
+  }
+
   requestBody["machineId"] = MACHINE_ID;
   requestBody["localIP"] = WiFi.localIP().toString();
   response = httpRequest("POST", "iotmachine", requestBody);
   result = JSON.parse(response);
-  hundred = result["100"];
+ hundred = result["100"];
   twohundred = result["200"];
   threehundred = result["300"];
   fourhundred = result["400"];
@@ -402,8 +424,8 @@ void login() {
   milkPrice = result["milkPrice"];
 }
 
-void addSale(int quantity, int price, String customerId) {
-   WebSerial.println("addsale started");
+void addSale(int quantity, int price, String customerId)
+{
   module.setDisplayToString(String(totalMilliLitres));
   String payload = "{}";
   JSONVar requestBody = JSON.parse(payload);
@@ -413,75 +435,93 @@ void addSale(int quantity, int price, String customerId) {
   saleMsg = "0-0";
   flag = false;
 
-  if (quantity <= 100) {
+if (quantity <= 100) {
+    mSpeed = 70;
     interval = 20;
-    max_loop = 75;
+    max_loop = 50;
     calibrationFactor = hundred;
   }
   if (quantity <= 200) {
-    interval = 50;
-    max_loop = 30;
+    mSpeed = 55;
+    interval = 100;
+    max_loop = 10;
     calibrationFactor = twohundred;
   } else if (quantity <= 300) {
+    mSpeed = 160;
     interval = 50;
-    max_loop = 30;
+    max_loop = 20;
     calibrationFactor = threehundred;
   } else if (quantity <= 400) {
+    mSpeed = 170;
     interval = 50;
-    max_loop = 30;
+    max_loop = 20;
     calibrationFactor = fourhundred;
   } else if (quantity <= 500) {
+    mSpeed = 180;
     interval = 100;
-    max_loop = 15;
+    max_loop = 10;
     calibrationFactor = fivehundred;
   } else if (quantity <= 600) {
+    mSpeed = 190;
     interval = 100;
-    max_loop = 15;
+    max_loop = 10;
     calibrationFactor = sixhundred;
   } else if (quantity <= 700) {
+    mSpeed = 200;
     interval = 100;
-    max_loop = 15;
+    max_loop = 10;
     calibrationFactor = sevenhundred;
   } else if (quantity <= 800) {
+    mSpeed = 255;
     interval = 100;
-    max_loop = 15;
+    max_loop = 10;
     calibrationFactor = eighthundred;
   } else if (quantity <= 900) {
+    mSpeed = 255;
     interval = 100;
-    max_loop = 15;
+    max_loop = 10;
     calibrationFactor = ninehundred;
   } else if (quantity <= 1000) {
+    mSpeed = 255;
     interval = 100;
-    max_loop = 15;
+    max_loop = 10;
     calibrationFactor = thousand;
   } else if (quantity <= 1250) {
-    interval = 500;
-    max_loop = 3;
+    mSpeed = 255;
+    interval = 100;
+    max_loop = 10;
     calibrationFactor = thousandtwofifty;
   } else if (quantity <= 1500) {
-    interval = 500;
-    max_loop = 3;
+    mSpeed = 255;
+    interval = 100;
+    max_loop = 10;
     calibrationFactor = thousandfivehundred;
   } else if (quantity <= 1750) {
-    interval = 1000;
-    max_loop = 1;
+    mSpeed = 255;
+    interval = 100;
+    max_loop = 10;
     calibrationFactor = thousandsevenfifty;
   } else {
-    interval = 1000;
-    max_loop = 1;
+    mSpeed = 255;
+    interval = 100;
+    max_loop = 10;
     calibrationFactor = twothousandPlus;
   }
   // WebSerial.println(String(calibrationFactor));
+  analogWrite(M_RELAY, mSpeed);
+  delay(1000);
 
-  digitalWrite(M_RELAY, LOW);
-  delay(200);
-
-  while (totalMilliLitres < quantity) {
-    // WebSerial.println("Sale inprogress");
+  while (totalMilliLitres < quantity)
+  {
+    Serial.println("Sale inprogress");
     currentMillis = millis();
-    if (currentMillis - previousMillis > interval) {
-      if (loop_check > max_loop) {
-        digitalWrite(M_RELAY, HIGH);
+    if (currentMillis - previousMillis > interval)
+    {
+      if (loop_check > max_loop)
+      {
+        mSpeed = 0;
+        analogWrite(M_RELAY, mSpeed);
+        // digitalWrite(M_RELAY, HIGH);
         delay(200);
         flag = true;
         break;
@@ -497,19 +537,25 @@ void addSale(int quantity, int price, String customerId) {
       // Add the millilitres passed in this second to the cumulative total
       totalMilliLitres += flowMilliLitres;
       module.setDisplayToString(String(totalMilliLitres));
-      if (lastRead != totalMilliLitres) {
+      if ( totalMilliLitres >= (lastRead + 5 )) {
         loop_check = 0;
         lastRead = totalMilliLitres;
-      } else {
+      }
+      else
+      {
         loop_check++;
       }
     }
     delay(interval);
   }
-  digitalWrite(M_RELAY, HIGH);
-  if (totalMilliLitres > 25) {
-    // WebSerial.println(ESP.getFreeHeap());
-    if (flag) {
+  mSpeed = 0;
+        analogWrite(M_RELAY, mSpeed);
+  // digitalWrite(M_RELAY, HIGH);
+  if (totalMilliLitres > 25)
+  {
+
+    if (flag)
+    {
       price = ceil((totalMilliLitres * milkPrice) / 1000);
       quantity = totalMilliLitres;
       requestBody["price"] = price;
@@ -517,26 +563,24 @@ void addSale(int quantity, int price, String customerId) {
     }
     saleMsg = String(quantity) + '-' + String(price);
     module.setDisplayToString(saleMsg);
-    if ((WiFi.status() == WL_CONNECTED))  // new
-    {
-      // WebSerial.println(ESP.getFreeHeap());                                              // new
-      httpRequest("POST", "transaction", requestBody);  // new
-      // WebSerial.println(ESP.getFreeHeap());
-    }                                        // new
-    else                                     // new
-    {                                        // new
-      module.setDisplayToString("Connect");  // new
-      WiFi.begin(ssid, password);            // new
-      while (WiFi.status() != WL_CONNECTED)  // new
-      {                                      // new
-        delay(1000);                         // new
-        // WebSerial.println("Connecting to Wifi");          // new
-        module.setDisplayToString("Connect");  // new
-      }                                        // new
-      // WebSerial.println("Connected");                     // new
-      Serial.print("IP address: ");                     // new
-      httpRequest("POST", "transaction", requestBody);  // new
-    }                                                   // new
+    if ((WiFi.status() == WL_CONNECTED))               // new
+    {                                                  // new
+      httpRequest("POST", "transaction", requestBody); // new
+    }                                                  // new
+    else                                               // new
+    {                                                  // new
+      module.setDisplayToString("Connect");            // new
+      WiFi.begin(ssid, password);                      // new
+      while (WiFi.status() != WL_CONNECTED)            // new
+      {                                                // new
+        delay(1000);                                   // new
+        Serial.println("Connecting to Wifi");          // new
+        module.setDisplayToString("Connect");          // new
+      }                                                // new
+      Serial.println("Connected");                     // new
+      Serial.print("IP address: ");                    // new
+      httpRequest("POST", "transaction", requestBody); // new
+    }                                                  // new
   }
   flag = false;
   pulseCount = 0;
@@ -548,39 +592,52 @@ void addSale(int quantity, int price, String customerId) {
   lastRead = 0;
 }
 
-String httpRequest(String reqType, String path, JSONVar params) {
+String httpRequest(String reqType, String path, JSONVar params)
+{
 
   HTTPClient http;
 
-  http.begin(endpoint + path, ca_cert);  // Specify the URL and certificate
+  http.begin(endpoint + path, rootCACertificate); // Specify the URL and certificate
   http.addHeader("Authorization", "Bearer " + token);
 
   int httpCode = 0;
-  if (reqType == "GET") {
+  if (reqType == "GET")
+  {
     httpCode = http.GET();
-  } else {
-    if (reqType == "POST") {
+  }
+  else
+  {
+    if (reqType == "POST")
+    {
       http.addHeader("Content-Type", "application/json");
       httpCode = http.POST(JSON.stringify(params));
     }
   }
 
   String response = "{}";
-  if (httpCode > 0) {  // Check for the returning code
+  if (httpCode > 0)
+  { // Check for the returning code
     response = http.getString();
-    // Serial.println(httpCode);
-    // Serial.println(response);
-  } else if (httpCode == 401 || httpCode == 403) {
+    Serial.println(httpCode);
+    Serial.println(response);
+  }
+  else if (httpCode == 401 || httpCode == 403)
+  {
     token = "";
     alarmBuzzer(3, 200);
-  } else {
-    // WebSerial.println("Error on HTTP request");
   }
-  http.end();  // Free the resources
+  else
+  {
+    Serial.println("Error on HTTP request");
+   // http.errorToString(httpCode).c_str());
+    Serial.println(http.errorToString(httpCode));
+  }
+  http.end(); // Free the resources
   return response;
 }
 
-JSONVar ReadRFIDData(int readInterval) {
+JSONVar ReadRFIDData(int readInterval)
+{
   mfrc522.PCD_Init();
   String payload = "{}";
   boolean readFlag = false;
@@ -588,25 +645,34 @@ JSONVar ReadRFIDData(int readInterval) {
   startTime = millis();
   currentTime = startTime;
 
-  while (!mfrc522.PICC_IsNewCardPresent()) {
-    if ((currentTime - startTime) <= readInterval) {
+  while (!mfrc522.PICC_IsNewCardPresent())
+  {
+    if ((currentTime - startTime) <= readInterval)
+    {
       Serial.print(".");
       currentTime = millis();
-    } else {
+    }
+    else
+    {
       readFlag = true;
       break;
     }
   };
-  while (!mfrc522.PICC_ReadCardSerial()) {
-    if ((currentTime - startTime) <= readInterval) {
+  while (!mfrc522.PICC_ReadCardSerial())
+  {
+    if ((currentTime - startTime) <= readInterval)
+    {
       Serial.print(".");
       currentTime = millis();
-    } else {
+    }
+    else
+    {
       readFlag = true;
       break;
     }
   };
-  if (readFlag) {
+  if (readFlag)
+  {
     requestBody["mobile"] = "";
     requestBody["password"] = "";
 
@@ -615,36 +681,41 @@ JSONVar ReadRFIDData(int readInterval) {
 
   requestBody["mobile"] = ReadBlockData(1);
   requestBody["password"] = ReadBlockData(4);
-  // Serial.println(requestBody["mobile"]);
-  // Serial.println(requestBody["password"]);
+  Serial.println(requestBody["mobile"]);
+  Serial.println(requestBody["password"]);
   mfrc522.PICC_HaltA();
   mfrc522.PCD_StopCrypto1();
   return requestBody;
 }
 
-String ReadBlockData(byte block) {
+String ReadBlockData(byte block)
+{
   byte blockBuffer[18];
   byte len = 18;
   MFRC522::MIFARE_Key key;
   for (byte i = 0; i < 6; i++)
     key.keyByte[i] = 0xFF;
   MFRC522::StatusCode status;
-  status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(mfrc522.uid));  // line 834 of MFRC522.cpp file
-  if (status != MFRC522::STATUS_OK) {
+  status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(mfrc522.uid)); // line 834 of MFRC522.cpp file
+  if (status != MFRC522::STATUS_OK)
+  {
     Serial.print(F("Authentication failed: "));
-    // WebSerial.println(mfrc522.GetStatusCodeName(status));
+    Serial.println(mfrc522.GetStatusCodeName(status));
     return "";
   }
 
   status = mfrc522.MIFARE_Read(block, blockBuffer, &len);
-  if (status != MFRC522::STATUS_OK) {
+  if (status != MFRC522::STATUS_OK)
+  {
     Serial.print(F("Reading failed: "));
-    // WebSerial.println(mfrc522.GetStatusCodeName(status));
+    Serial.println(mfrc522.GetStatusCodeName(status));
     return "";
   }
   String blockData = "";
-  for (uint8_t i = 0; i < 16; i++) {
-    if (blockBuffer[i] == 32) {
+  for (uint8_t i = 0; i < 16; i++)
+  {
+    if (blockBuffer[i] == 32)
+    {
       break;
     }
     blockData += char(blockBuffer[i]);
@@ -653,141 +724,153 @@ String ReadBlockData(byte block) {
   return blockData;
 }
 
-int readInputFromKeyPad(int mn, int mx) {
+int readInputFromKeyPad(int mn, int mx)
+{
   String text = "";
   String temp = "";
-   unsigned long lastInputTime = millis(); // Initialize the timer
-  const unsigned long noInputThreshold = 50; // Set the no-input threshold to 5 seconds
-  while (text.length() <= mx) {
+  while (text.length() <= mx)
+  {
     temp = handleInput(&module, &mode, temp, mx);
-    if (temp == "ok") {
-      if (text.length() >= mn) {
+    if (temp == "ok")
+    {
+      if (text.length() >= mn)
+      {
         break;
       }
       temp = text;
-    } else if (temp == "qty") {
+    }
+    else if (temp == "qty")
+    {
       qtyFlag = true;
       temp = "";
       text = "";
       module.setDisplayToString("qty");
-    } else if (temp == "card") {
+    }
+    else if (temp == "card")
+    {
       module.setDisplayToString("cardread");
       String payload = "{}";
-      // WebSerial.println("Insdie card read");
+      Serial.println("Insdie card read");
       JSONVar requestBody = JSON.parse(payload);
       requestBody = ReadRFIDData(3000);
       customerId = requestBody["mobile"];
 
-      if (customerId.length() < 10) {
+      if (customerId.length() < 10)
+      {
         module.setDisplayToString("err");
         alarmBuzzer(2, 200);
-      } else {
+      }
+      else
+      {
         module.setDisplayToString("cus");
         alarmBuzzer(1, 200);
       }
 
       temp = "";
       text = "";
-    } else if (temp == "code") {
+    }
+    else if (temp == "code")
+    {
       module.setDisplayToString(MACHINE_ID);
       temp = "";
       text = "";
-    } else {
+    }
+    else
+    {
       text = temp;
-    }
-     if (temp.length() == 0 && millis() - lastInputTime >= noInputThreshold) {
-      // If no input has been received for the threshold duration, break out of the loop
-      break;
-    }
-    
-    // Update the timer
-    if (temp.length() > 0) {
-      lastInputTime = millis();
     }
   }
   return text.toInt();
-  
 }
 
-String handleInput(TM1638QYF *module, word *mode, String tempText, int l) {
+String handleInput(TM1638QYF *module, word *mode, String tempText, int l)
+{
 
   word buttons = module->getButtons();
 
   // button pressed - change mode
-  if (buttons != 0) {
+  if (buttons != 0)
+  {
     *mode = buttons >> 1;
 
-    if (*mode < 0) {
+    if (*mode < 0)
+    {
       module->clearDisplay();
       delay(100);
     }
-    switch (*mode) {
-      case 0:  // S1
-        tempText = "card";
-        break;
-      case 1:  // S2
-        tempText += "1";
-        break;
-      case 2:  // S3
-        tempText += "2";
-        break;
-      case 4:  // S4
-        tempText += "3";
-        break;
-      case 8:  // S5
-        tempText = "code";
-        break;
-      case 16:  // S6
-        tempText += "4";
-        break;
-      case 32:  // S7
-        tempText += "5";
-        break;
-      case 64:  // S8
-        tempText += "6";
-        break;
-      case 128:  // S9
-        break;
-      case 256:  // S10
-        tempText += "7";
-        break;
-      case 512:  // S11
-        tempText += "8";
-        break;
-      case 1024:  // S12
-        tempText += "9";
-        break;
-      case 2048:  // S13
-        tempText = "qty";
-        break;
-      case 4096:  // S14
-        tempText = "clear";
-        break;
-      case 8192:  // S15
-        tempText += "0";
-        break;
-      case 16384:  // S16
-        tempText = "ok";
-        break;
-      default:  // unknown busson
-        break;
+    switch (*mode)
+    {
+    case 0: // S1
+      tempText = "card";
+      break;
+    case 1: // S2
+      tempText += "1";
+      break;
+    case 2: // S3
+      tempText += "2";
+      break;
+    case 4: // S4
+      tempText += "3";
+      break;
+    case 8: // S5
+      tempText = "code";
+      break;
+    case 16: // S6
+      tempText += "4";
+      break;
+    case 32: // S7
+      tempText += "5";
+      break;
+    case 64: // S8
+      tempText += "6";
+      break;
+    case 128: // S9
+      break;
+    case 256: // S10
+      tempText += "7";
+      break;
+    case 512: // S11
+      tempText += "8";
+      break;
+    case 1024: // S12
+      tempText += "9";
+      break;
+    case 2048: // S13
+      tempText = "qty";
+      break;
+    case 4096: // S14
+      tempText = "clear";
+      break;
+    case 8192: // S15
+      tempText += "0";
+      break;
+    case 16384: // S16
+      tempText = "ok";
+      break;
+    default: // unknown busson
+      break;
     }
     delay(300);
   }
   String displayInput = tempText;
-  if (displayInput.length() > l) {
+  if (displayInput.length() > l)
+  {
     displayInput = "";
     module->setDisplayToString("----");
-  } else if (displayInput.length() > 0) {
+  }
+  else if (displayInput.length() > 0)
+  {
     module->setDisplayToString(displayInput);
   }
 
   return displayInput;
 }
 
-void alarmBuzzer(int count, int buzDelay) {
+void alarmBuzzer(int count, int buzDelay)
+{
   int i = 0;
-  while (i < count) {
+  while (i < count)
+  {
     digitalWrite(BUZZER, HIGH);
     delay(buzDelay);
     digitalWrite(BUZZER, LOW);
@@ -796,25 +879,34 @@ void alarmBuzzer(int count, int buzDelay) {
   }
 }
 
-boolean checkCardDetails() {
+boolean checkCardDetails()
+{
   long startTime = millis();
   long currentTime = startTime;
-  while (!mfrc522.PICC_IsNewCardPresent()) {
-    if ((currentTime - startTime) <= 3000) {
+  while (!mfrc522.PICC_IsNewCardPresent())
+  {
+    if ((currentTime - startTime) <= 3000)
+    {
       Serial.print(".");
       currentTime = millis();
-    } else {
-      // WebSerial.println("No new card found");
+    }
+    else
+    {
+      WebSerial.println("No new card found");
       return false;
       break;
     }
   };
-  while (!mfrc522.PICC_ReadCardSerial()) {
-    if ((currentTime - startTime) <= 3000) {
+  while (!mfrc522.PICC_ReadCardSerial())
+  {
+    if ((currentTime - startTime) <= 3000)
+    {
       Serial.print(".");
       currentTime = millis();
-    } else {
-      // WebSerial.println("No card found");
+    }
+    else
+    {
+      WebSerial.println("No card found");
       return false;
       break;
     }
@@ -822,7 +914,8 @@ boolean checkCardDetails() {
   return true;
 }
 
-void writeDataintoCard(String value, byte block1, byte block2) {
+void writeDataintoCard(String value, byte block1, byte block2)
+{
 
   MFRC522::MIFARE_Key key;
   for (byte i = 0; i < 6; i++)
@@ -834,24 +927,29 @@ void writeDataintoCard(String value, byte block1, byte block2) {
   for (byte i = len; i < 30; i++)
     buffer[i] = ' ';
   status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block1, &key, &(mfrc522.uid));
-  if (status != MFRC522::STATUS_OK) {
+  if (status != MFRC522::STATUS_OK)
+  {
     WebSerial.print(F("PCD_Authenticate()block 1 failed: "));
     WebSerial.println(mfrc522.GetStatusCodeName(status));
     return;
-  } else
+  }
+  else
     WebSerial.println(F("PCD_Authenticate() success: "));
 
   // Write block
   status = mfrc522.MIFARE_Write(block1, buffer, 16);
-  if (status != MFRC522::STATUS_OK) {
+  if (status != MFRC522::STATUS_OK)
+  {
     WebSerial.print(F("MIFARE_Write() block 1 failed: "));
     WebSerial.println(mfrc522.GetStatusCodeName(status));
     return;
-  } else
+  }
+  else
     WebSerial.println(F("MIFARE_Write() block 1 success: "));
 
   status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block2, &key, &(mfrc522.uid));
-  if (status != MFRC522::STATUS_OK) {
+  if (status != MFRC522::STATUS_OK)
+  {
     WebSerial.print(F("PCD_Authenticate() block 2 failed: "));
     WebSerial.println(mfrc522.GetStatusCodeName(status));
     return;
@@ -859,10 +957,12 @@ void writeDataintoCard(String value, byte block1, byte block2) {
 
   // Write block
   status = mfrc522.MIFARE_Write(block2, &buffer[16], 16);
-  if (status != MFRC522::STATUS_OK) {
+  if (status != MFRC522::STATUS_OK)
+  {
     WebSerial.print(F("MIFARE_Write() block 2 failed: "));
     WebSerial.println(mfrc522.GetStatusCodeName(status));
     return;
-  } else
+  }
+  else
     WebSerial.println(F("MIFARE_Write() block 2 success: "));
 }
