@@ -1,3 +1,4 @@
+// rotate clockwise for step down voltage
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -21,8 +22,8 @@
 // #define CLK 32
 // #define DIO 33
 
-#define RST_PIN 22  // Configurable, see typical pin layout above
-#define SS_PIN 21   // SCK 18, MISO 19 , SDA 21, MOSI 23
+#define RST_PIN 21  // Configurable, see typical pin layout above
+#define SS_PIN 5   // SCK 18, MISO 19 , SDA 21, MOSI 23
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
 
@@ -42,30 +43,48 @@ const char *password = "sivalingammilks";
 
 AsyncWebServer server(80);
 
-void recvMsg(uint8_t *data, size_t len) {  // Init MFRC522 card
+
+void recvMsg(uint8_t *data, size_t len)
+{
+  mfrc522.PCD_Init(); // Init MFRC522 card
   String msg = "";
-
-
-  for (int i = 0; i < len; i++) {
+  for (int i = 0; i < len; i++)
+  {
     msg += char(data[i]);
   }
   WebSerial.println("Received Data...");
   WebSerial.println(msg);
-  // myData.price = msg.toInt();
-  int price;
-  int qty;
-  int milkPrice;
-  String customerId;
-  customerId = "";
+  int option = msg.substring(0, 1).toInt();
+  String value = msg.substring(2);
+  if (checkCardDetails())
+  {
+    switch (option)
+    {
+    case 1:
+      WebSerial.println("Writing data in mobile blocks");
+      writeDataintoCard(value, 1, 2);
+      break;
+    case 2:
+      WebSerial.println("Writing data in password blocks");
+      writeDataintoCard(value, 4, 5);
+      break;
+    case 3:
+      WebSerial.println("Mobile :");
+      WebSerial.println(ReadBlockData(1));
 
-  price = msg.toInt();
-  milkPrice = 50;
-  qty = (price * 1000) / milkPrice;
-  if (price > 0) {
-    addSale(qty, price, customerId);
+      break;
+    case 4:
+      WebSerial.println("Password:");
+      WebSerial.println(ReadBlockData(4));
+      break;
+    default:
+      break;
+    }
   }
-  // WebSerial.println("Smart Card Options: \n1.Write mobile \n2.Write Password \n3.Read Mobile \n4.Read Password \n5.Write Price");
-  WebSerial.println(WiFi.macAddress());
+  mfrc522.PICC_HaltA();
+  mfrc522.PCD_StopCrypto1();
+  WebSerial.println("Smart Card Options: \n1.Write mobile \n2.Write Password \n3.Read Mobile \n4.Read Password");
+  WebSerial.println("Wifi Ip");
   WebSerial.println(WiFi.localIP().toString());
 }
 
@@ -184,7 +203,7 @@ void setup() {
     delay(1000);
     Serial.println("Connecting to AP...");
   }
-  Wire.begin(32, 33);
+  Wire.begin(26, 25);
   lcd.begin(16, 2);  // initialize the lcd for 16 chars 2 lines, turn on backlight
 
   // turn on LCD backlight
@@ -257,30 +276,24 @@ void setup() {
   delay(1000);
   WebSerial.println("setup complete");
   lcd.clear();
+  SPI.begin(); 
 }
-
 void loop() {
-  //lcd.clear();
+   ElegantOTA.loop();
   delay(1000);
   WebSerial.println("loop");
-  //lcd.print(value);
-  // WebSerial.println(WiFi.macAddress());
-  // delay(1000);
-  int milkPrice;
-  int price;
-  int qty;
-  //  String customerId;
-  // customerId = "";
-  milkPrice = 50;
+  int milkPrice = 50;
+  int price = 0;
+  int qty = 0;
   static uint32_t value = 0;
 
-  //  qty = 1000;
-  //lcd.print(totalMilliLitres);
+  // Handle keypad value
   price = handleKeyPadValue(value);
-  value = 0;
+  value = 0; // Reset the value after handling
+
   if (price > 0) {
     WebSerial.println("call add sale");
-    int qty = (price * 1000) / milkPrice;
+    qty = (price * 1000) / milkPrice;
     addSale(qty, price, customerId);
   }
 }
@@ -293,15 +306,18 @@ int handleKeyPadValue(uint32_t &value) {
     WebSerial.println("Attempting to communicate with keypad");
   }
 
-  char v[19] = "D#0*C987B654A321NF";  // N = NoKey, F = Fail
+  char v[19] = "D#0*C987B654A321NF";
   static uint8_t lastKey = 0;
   static unsigned long lastPressTime = 0;
-  unsigned long debounceDelay = 000;  // 200 ms debounce delay
+  unsigned long debounceDelay = 200; // 200 ms debounce delay
+  uint8_t idx;
+  char c;
+  unsigned long currentTime;
 
-  while (true) {  // Loop until a valid key press is registered
-    uint8_t idx = keyPad.getKey();
-    char c = v[idx];
-    unsigned long currentTime = millis();
+  while (true) {
+    idx = keyPad.getKey();
+    c = v[idx];
+    currentTime = millis();
 
     if (c != lastKey && (currentTime - lastPressTime > debounceDelay)) {
       lastKey = c;
@@ -309,23 +325,23 @@ int handleKeyPadValue(uint32_t &value) {
 
       switch (c) {
         case '0' ... '9':
-          if (value < 10000)  // Limit to 4 digits
-          {
+          if (value < 2000) {
             value *= 10;
             value += c - '0';
+             lcd.clear();
+      lcd.print(value);
+      WebSerial.println(value);
           }
           break;
         case '*':
           if (value > 0) value /= 10;
+         
           break;
         case '#':
           value = 0;
           break;
         case 'D':
-          // Assign the value as the price and exit the loop
           lcd.clear();
-          // lcd.print("Value: ");
-          // lcd.print(value);
           return value;
         case 'A':
           functionA();
@@ -346,19 +362,14 @@ int handleKeyPadValue(uint32_t &value) {
           break;
       }
 
-      // Update the LCD with the current value after every valid input
-      lcd.clear();
-      // lcd.print("Value: ");
-      lcd.print(value);
-      WebSerial.println(value);
+    
+      // Reset lastKey to avoid repeated processing of the same key
+      lastKey = 0;
     }
-
-    // delay(100); // Small delay to slow down the loop
   }
 
-  return -1;  // This will not be reached
+  return -1; // This will not be reached
 }
-
 
 void functionA() {
   Serial.println("Function A called");
@@ -370,29 +381,64 @@ void functionB() {
 
 void functionC() {
   Serial.println("Function C called");
+
+  // Clear the LCD and prompt the user to place the card
+  lcd.clear();
+  lcd.print("Place card");
+
+  // Wait for a card to be present
+  while (!mfrc522.PICC_IsNewCardPresent()) {
+    delay(100);
+  }
+
+  // Read the card
+  if (mfrc522.PICC_ReadCardSerial()) {
+    // Card detected, read the UID
+    String uid = "";
+    for (byte i = 0; i < mfrc522.uid.size; i++) {
+      uid += String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
+      uid += String(mfrc522.uid.uidByte[i], HEX);
+    }
+    uid.toUpperCase();
+
+    // Display the UID on the LCD
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Card UID:");
+    lcd.setCursor(0, 1);
+    lcd.print(uid);
+
+    // Display the UID on WebSerial
+    WebSerial.println("RFID Reading Results:");
+    WebSerial.print("Card UID: ");
+    WebSerial.println(uid);
+  } else {
+    // No card detected
+    lcd.clear();
+    lcd.print("No card detected");
+    WebSerial.println("No card detected");
+  }
+
+  // Halt PICC
+  mfrc522.PICC_HaltA();
 }
 
 void functionD() {
   Serial.println("Function D called");
 }
 
-
 void addSale(int quantity, int price, String customerId) {
   WebSerial.println("inside add sale");
-  // display.showNumberDec(totalMilliLitres);
-  // module.setDisplayToString(String(totalMilliLitres));
   String payload = "{}";
   JSONVar requestBody = JSON.parse(payload);
   requestBody["price"] = price;
   requestBody["quantity"] = quantity;
   requestBody["mobile"] = customerId;
   saleMsg = "0-0";
-  // flag = false;
 
   if (quantity <= 100) {
     calibrationFactor = 2;
-  }
-  if (quantity <= 200) {
+  } else if (quantity <= 200) {
     calibrationFactor = 6;
   } else if (quantity <= 300) {
     calibrationFactor = 8;
@@ -405,57 +451,40 @@ void addSale(int quantity, int price, String customerId) {
   } else {
     calibrationFactor = 4.8;
   }
-  //  calibrationFactor = 4.5;
   WebSerial.println(String(calibrationFactor));
   mSpeed = 60;
-  // digitalWrite(M_RELAY, HIGH);
   analogWrite(M_RELAY, mSpeed);
 
-
   while (totalMilliLitres < quantity) {
-    Serial.println("Sale inprogress");
+    Serial.println("Sale in progress");
     currentMillis = millis();
     if (currentMillis - previousMillis > interval) {
       if (loop_check > max_loop) {
-        // digitalWrite(M_RELAY, LOW);
         mSpeed = 0;
         analogWrite(M_RELAY, mSpeed);
-
         flag = true;
         break;
       }
       pulse1Sec = pulseCount;
       pulseCount = 0;
-
       flowRate = ((1000.0 / (millis() - previousMillis)) * pulse1Sec) / calibrationFactor;
       previousMillis = millis();
-
       flowMilliLitres = (flowRate / 60) * interval;
-
-      // Add the millilitres passed in this second to the cumulative total
       totalMilliLitres += flowMilliLitres;
       lcd.clear();
       lcd.print(totalMilliLitres);
-      // display.showNumberDec(totalMilliLitres);
-      //  module.setDisplayToString(String(totalMilliLitres));
-      // display.showNumberDec(totalMilliLitres);
       WebSerial.println(String(totalMilliLitres));
       if (lastRead != totalMilliLitres) {
         loop_check = 0;
         lastRead = totalMilliLitres;
       } else {
         loop_check++;
-        //   WebSerial.println(loop_check);
       }
     }
     delay(interval);
   }
-  // digitalWrite(M_RELAY, LOW);
   mSpeed = 0;
   analogWrite(M_RELAY, mSpeed);
-  // myData.relay = 0;
-  // myData.flowOutput = totalMilliLitres;
-  // sendData();
   WebSerial.println(String(calibrationFactor));
   WebSerial.println(totalMilliLitres);
   lcd.clear();
@@ -502,10 +531,9 @@ void addSale(int quantity, int price, String customerId) {
   loop_check = 0;
   lastRead = 0;
   price = 0;
-  //value = 0;
   WebSerial.println("sale end");
+ // value = 0; // Reset the value after sale ends
 }
-
 
 String httpRequest(String reqType, String path, JSONVar params) {
 
@@ -703,73 +731,91 @@ void alarmBuzzer(int count, int buzDelay) {
   }
 }
 
-// String handleInput(String tempText, int l) {
-//   char key = keypad.getKey();
-//   if (key) {
-//     switch (key) {
-//       case 'A':
-//         tempText = "card";
-//         break;
-//       case '1':
-//       case '2':
-//       case '3':
-//       case '4':
-//       case '5':
-//       case '6':
-//       case '7':
-//       case '8':
-//       case '9':
-//       case '0':
-//         tempText += key;
-//         break;
-//       case 'B':
-//         tempText = "code";
-//         break;
-//       case 'C':
-//         tempText = "qty";
-//         break;
-//       case 'D':
-//         tempText = "ok";
-//         break;
-//       case '*':
-//         tempText = "clear";
-//         break;
-//       default:
-//         break;
-//     }
-//     delay(300);
-//   }
-//   String displayInput = tempText;
-//   if (displayInput.length() > l) {
-//     displayInput = "";
-//     // display.showNumberDec( 0, true); // Display "----" equivalent
-//     lcd.clear();
-//     lcd.print("0");
-//   } else if (displayInput.length() > 0) {
-//     //display.showNumberDec(displayInput.toInt(), false);
-//     // lcd.clear();
-//     lcd.print(displayInput.toInt());
-//   }
-//   return displayInput;
-// }
 
+boolean checkCardDetails()
+{
+  long startTime = millis();
+  long currentTime = startTime;
+  while (!mfrc522.PICC_IsNewCardPresent())
+  {
+    if ((currentTime - startTime) <= 3000)
+    {
+      Serial.print(".");
+      currentTime = millis();
+    }
+    else
+    {
+      WebSerial.println("No new card found");
+      return false;
+      break;
+    }
+  };
+  while (!mfrc522.PICC_ReadCardSerial())
+  {
+    if ((currentTime - startTime) <= 3000)
+    {
+      Serial.print(".");
+      currentTime = millis();
+    }
+    else
+    {
+      WebSerial.println("No card found");
+      return false;
+      break;
+    }
+  };
+  return true;
+}
 
-// void functionA() {
-//   Serial.println("Function A called");
-//   // Implement functionality for A input
-// }
+void writeDataintoCard(String value, byte block1, byte block2)
+{
 
-// void functionB() {
-//   Serial.println("Function B called");
-//   // Implement functionality for B input
-// }
+  MFRC522::MIFARE_Key key;
+  for (byte i = 0; i < 6; i++)
+    key.keyByte[i] = 0xFF;
+  byte buffer[34];
+  MFRC522::StatusCode status;
+  byte len = byte(value.length());
+  value.getBytes(buffer, 30);
+  for (byte i = len; i < 30; i++)
+    buffer[i] = ' ';
+  status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block1, &key, &(mfrc522.uid));
+  if (status != MFRC522::STATUS_OK)
+  {
+    WebSerial.print(F("PCD_Authenticate()block 1 failed: "));
+    WebSerial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  }
+  else
+    WebSerial.println(F("PCD_Authenticate() success: "));
 
-// void functionC() {
-//   Serial.println("Function C called");
-//   // Implement functionality for C input
-// }
+  // Write block
+  status = mfrc522.MIFARE_Write(block1, buffer, 16);
+  if (status != MFRC522::STATUS_OK)
+  {
+    WebSerial.print(F("MIFARE_Write() block 1 failed: "));
+    WebSerial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  }
+  else
+    WebSerial.println(F("MIFARE_Write() block 1 success: "));
 
-// void functionD() {
-//   Serial.println("Function D called");
-//   // Implement functionality for D input
-// }
+  status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block2, &key, &(mfrc522.uid));
+  if (status != MFRC522::STATUS_OK)
+  {
+    WebSerial.print(F("PCD_Authenticate() block 2 failed: "));
+    WebSerial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  }
+
+  // Write block
+  status = mfrc522.MIFARE_Write(block2, &buffer[16], 16);
+  if (status != MFRC522::STATUS_OK)
+  {
+    WebSerial.print(F("MIFARE_Write() block 2 failed: "));
+    WebSerial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  }
+  else
+    WebSerial.println(F("MIFARE_Write() block 2 success: "));
+}
